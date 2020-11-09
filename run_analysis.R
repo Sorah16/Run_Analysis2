@@ -1,67 +1,90 @@
-#0. prepare LIBs
-library(reshape2)
-#1. get dataset from web
-rawDataDir <- "./rawData"
-rawDataUrl <- "https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
-rawDataFilename <- "rawData.zip"
-rawDataDFn <- paste(rawDataDir, "/", "rawData.zip", sep = "")
-dataDir <- "./data"
+library(ggplot2)
+library(dplyr)
+library(reshape)
 
-if (!file.exists(rawDataDir)) {
-  dir.create(rawDataDir)
-  download.file(url = rawDataUrl, destfile = rawDataDFn)
-}
-if (!file.exists(dataDir)) {
-  dir.create(dataDir)
-  unzip(zipfile = rawDataDFn, exdir = dataDir)
-}
+data <- read.csv(file.choose())
 
 
-#2. merge {train, test} data set
-# refer: http://archive.ics.uci.edu/ml/datasets/Human+Activity+Recognition+Using+Smartphones
-# train data
-x_train <- read.table(paste(sep = "", dataDir, "/UCI HAR Dataset/train/X_train.txt"))
-y_train <- read.table(paste(sep = "", dataDir, "/UCI HAR Dataset/train/Y_train.txt"))
-s_train <- read.table(paste(sep = "", dataDir, "/UCI HAR Dataset/train/subject_train.txt"))
-
-# test data
-x_test <- read.table(paste(sep = "", dataDir, "/UCI HAR Dataset/test/X_test.txt"))
-y_test <- read.table(paste(sep = "", dataDir, "/UCI HAR Dataset/test/Y_test.txt"))
-s_test <- read.table(paste(sep = "", dataDir, "/UCI HAR Dataset/test/subject_test.txt"))
-
-# merge {train, test} data
-x_data <- rbind(x_train, x_test)
-y_data <- rbind(y_train, y_test)
-s_data <- rbind(s_train, s_test)
 
 
-#3. load feature & activity info
-# feature info
-feature <- read.table(paste(sep = "", dataDir, "/UCI HAR Dataset/features.txt"))
+attach(data)
+head(data)
+summary(data)
+colnames(data)
+str(data)
+data <- data[, -2]
 
-# activity labels
-a_label <- read.table(paste(sep = "", dataDir, "/UCI HAR Dataset/activity_labels.txt"))
-a_label[,2] <- as.character(a_label[,2])
-
-# extract feature cols & names named 'mean, std'
-selectedCols <- grep("-(mean|std).*", as.character(feature[,2]))
-selectedColNames <- feature[selectedCols, 2]
-selectedColNames <- gsub("-mean", "Mean", selectedColNames)
-selectedColNames <- gsub("-std", "Std", selectedColNames)
-selectedColNames <- gsub("[-()]", "", selectedColNames)
+reslt<- table(data$St_name)
+View(reslt)
 
 
-#4. extract data by cols & using descriptive name
-x_data <- x_data[selectedCols]
-allData <- cbind(s_data, y_data, x_data)
-colnames(allData) <- c("Subject", "Activity", selectedColNames)
+data2 <- read.csv(file.choose())
 
-allData$Activity <- factor(allData$Activity, levels = a_label[,1], labels = a_label[,2])
-allData$Subject <- as.factor(allData$Subject)
+attach(data)
+head(data2)
+summary(data)
+colnames(data2)
+str(data)
+data <- data[, -1]
+data <- data[, -4] # repeat 5
+
+names(data2) <- c("DateTime",   "St_ID",   "St_name","Usage","Distance","H_Code","Gender", "Age")
+
+###  inner join
+join<- merge(data, data2, by = "St_name")
 
 
-#5. generate tidy data set
-meltedData <- melt(allData, id = c("Subject", "Activity"))
-tidyData <- dcast(meltedData, Subject + Activity ~ variable, mean)
 
-write.table(tidyData, "./tidy_dataset.txt", row.names = FALSE, quote = FALSE)
+## Creating Density Plot
+
+ggplot(stn_TOD_editted, aes(Distance_km)) + geom_density(fill= "blue", alpha = .3) + 
+  labs(x = "Total Rentals Per Day", y = "Density")
+
+fill <- "#4271AE"
+lines <- "#1F3552"
+
+ggplot(No_TOD, aes(Distance_km)) + geom_density(colour = lines, fill = fill,size = 1) + 
+  scale_x_continuous(name = "Total Distance Per Rental (km)", breaks = seq(0,20,2), limits = c(0,20)) +
+  scale_y_continuous(name = "Density")+
+  ggtitle("Density plot of Distance (Non_Tod_stn)") +
+  theme_bw() +
+  theme(axis.line = element_line(size=1, colour = "black"),
+        panel.grid.major = element_line(colour = "#d3d3d3"),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(), panel.background = element_blank(),
+        plot.title = element_text(size = 14, family = "Tahoma", face = "bold"),
+        text=element_text(family="Tahoma"),
+        axis.text.x=element_text(colour="black", size = 9),
+        axis.text.y=element_text(colour="black", size = 9))
+
+###ggplot2 density plotting different size of data in R
+
+ggplot() + 
+  geom_density(data = data, aes(x = Distance), 
+               fill = "#E69F00", color = "black", alpha = 0.7) + 
+  geom_density(data = data2, aes(x = Distance),
+               fill = "#56B4E9", color = "black", alpha = 0.7)
+
+
+### Example
+
+## If you have two datasets with different amounts of data, you can plot them together like so:
+
+df1 <- data.frame(x = rnorm(1000, 0, 2))
+df2 <- data.frame(y = rnorm(500, 1, 1))
+
+ggplot() + 
+  geom_density(data = df1, aes(x = x), 
+               fill = "#E69F00", color = "black", alpha = 0.7) + 
+  geom_density(data = df2, aes(x = y),
+               fill = "#56B4E9", color = "black", alpha = 0.7)
+
+#### Areas under the density curves to be scaled relative to the amount of data in each group
+
+df1 <- data.frame(x = rnorm(1000, 0, 2), label=rep('df1', 1000))
+df2 <- data.frame(x = rnorm(500, 1, 1), label=rep('df2', 500))
+df=rbind(df1, df2)
+
+ggplot(df, aes(x, y=..count.., fill=label)) + 
+  geom_density(color = "black", alpha = 0.7) + 
+  scale_fill_manual(values = c("#E69F00", "#56B4E9"))
